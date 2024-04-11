@@ -48,78 +48,12 @@ rmd160init(
   v->l = 0;
 }
 
-static rmd160_bt
-rmd160_f0(
- rmd160_bt x
-,rmd160_bt y
-,rmd160_bt z
-){
-  return (x ^ y ^ z);
-}
-
-static rmd160_bt
-rmd160_f1(
- rmd160_bt x
-,rmd160_bt y
-,rmd160_bt z
-){
-  return ((x & y) | (~x & z)); 
-}
-
-static rmd160_bt
-rmd160_f2(
- rmd160_bt x
-,rmd160_bt y
-,rmd160_bt z
-){
-  return ((x | ~y) ^ z);
-}
-
-static rmd160_bt
-rmd160_f3(
- rmd160_bt x
-,rmd160_bt y
-,rmd160_bt z
-){
-  return ((x & z) | (y & ~z)); 
-}
-
-static rmd160_bt
-rmd160_f4(
- rmd160_bt x
-,rmd160_bt y
-,rmd160_bt z
-){
-  return (x ^ (y | ~z));
-}
-
-static rmd160_bt
-rmd160_rl(
- rmd160_bt x
-,unsigned char n
-){
-  return (((x << n) | (x >> (32 - n))));
-}
-
 static void
 rmd160mix(
   rmd160_bt h[]
  ,unsigned char x[]
 ){
-  static rmd160_bt(*f[10])(rmd160_bt, rmd160_bt, rmd160_bt) = { /* nonlinear functions at bit level: exor, mux, -, mux, - */
-    rmd160_f0
-   ,rmd160_f1
-   ,rmd160_f2
-   ,rmd160_f3
-   ,rmd160_f4
-
-   ,rmd160_f4
-   ,rmd160_f3
-   ,rmd160_f2
-   ,rmd160_f1
-   ,rmd160_f0
-  };
-  static rmd160_bt k[10] = { /* added constants (hexadecimal) */
+  static rmd160_bt k[10] = { /* added constants */
     0x00000000U
    ,0x5a827999U
    ,0x6ed9eba1U
@@ -132,7 +66,7 @@ rmd160mix(
    ,0x7a6d76e9U
    ,0x00000000U
   };
-  static unsigned char r[10][16] = { /* selection of message word from byte array */
+  static unsigned char r[10][16] = { /* message word (from bytes) */
    { 0, 4, 8,12,16,20,24,28,32,36,40,44,48,52,56,60}
   ,{28,16,52, 4,40,24,60,12,48, 0,36,20, 8,56,44,32}
   ,{12,40,56,16,36,60,32, 4, 8,28, 0,24,52,44,20,48}
@@ -145,7 +79,7 @@ rmd160mix(
   ,{32,24,16, 4,12,44,60, 0,20,48, 8,52,36,28,40,56}
   ,{48,60,40,16, 4,20,32,28,24, 8,52,56, 0,12,36,44}
   };
-  static unsigned char s[10][16] = { /* amount for rotate left (rol) */
+  static unsigned char s[10][16] = { /* amount to rotate left */
    {11,14,15,12, 5, 8, 7, 9,11,13,14,15, 6, 7, 9, 8}
   ,{ 7, 6, 8,13,11, 9, 7,15, 7,12,15, 9,11, 7,13,12}
   ,{11,13, 6, 7,14, 9,13,15,14, 8,13, 6, 5,12, 7, 5}
@@ -158,7 +92,7 @@ rmd160mix(
   ,{15, 5, 8,11,14,14, 6,14, 6, 9,12, 9,12, 5,15, 8}
   ,{ 8, 5,12, 9,12, 5,14, 6, 8,13, 6, 5,15,13,11,11}
   };
-  static unsigned char v[10][16][5] = { /* hash rotation */
+  static unsigned char v[10][16][5] = { /* hash mix */
   {
    {0,1,2,3,4},{4,0,1,2,3},{3,4,0,1,2},{2,3,4,0,1},{1,2,3,4,0},{0,1,2,3,4},{4,0,1,2,3},{3,4,0,1,2}
   ,{2,3,4,0,1},{1,2,3,4,0},{0,1,2,3,4},{4,0,1,2,3},{3,4,0,1,2},{2,3,4,0,1},{1,2,3,4,0},{0,1,2,3,4}
@@ -194,6 +128,7 @@ rmd160mix(
   }
   };
   rmd160_bt t[10]; /* a=0 b=1 c=2 d=3 e=4 a'=5 b'=6 c'=7 d'=8 e'=9 */
+  rmd160_bt f;
   unsigned int i;
   unsigned int j;
 
@@ -201,14 +136,29 @@ rmd160mix(
     t[5 + i] = t[i] = h[i];
   for (i = 0; i < 10; ++i) {
     for (j = 0; j < 16; ++j) {
-      t[v[i][j][0]] = rmd160_rl(t[v[i][j][0]]
-                              + f[i](t[v[i][j][1]], t[v[i][j][2]], t[v[i][j][3]])
-                              + (x[r[i][j] + 0] << 0 | x[r[i][j] + 1] << 8 | x[r[i][j] + 2] << 16 | x[r[i][j] + 3] << 24)
-                              + k[i]
-                              , s[i][j]
-                      )
+      switch (i) {
+      case 0: case 9:
+        f = t[v[i][j][1]] ^ t[v[i][j][2]] ^ t[v[i][j][3]];
+        break;
+      case 1: case 8:
+        f = (t[v[i][j][1]] & t[v[i][j][2]]) | (~t[v[i][j][1]] & t[v[i][j][3]]);
+        break;
+      case 2: case 7:
+        f = (t[v[i][j][1]] | ~t[v[i][j][2]]) ^ t[v[i][j][3]];
+        break;
+      case 3: case 6:
+        f = (t[v[i][j][1]] & t[v[i][j][3]]) | (t[v[i][j][2]] & ~t[v[i][j][3]]);
+        break;
+      case 4: case 5:
+        f = t[v[i][j][1]] ^ (t[v[i][j][2]] | ~t[v[i][j][3]]);
+        break;
+      }
+      f += t[v[i][j][0]]
+         + (x[r[i][j] + 0] << 0 | x[r[i][j] + 1] << 8 | x[r[i][j] + 2] << 16 | x[r[i][j] + 3] << 24)
+         + k[i];
+      t[v[i][j][0]] = ((f << s[i][j]) | (f >> (32 - s[i][j])))
                     + t[v[i][j][4]];
-      t[v[i][j][2]] = rmd160_rl(t[v[i][j][2]], 10);
+      t[v[i][j][2]] = (t[v[i][j][2]] << 10) | (t[v[i][j][2]] >> (32 - 10));
     }
   }
   t[2] = h[1] + t[2] + t[8];
@@ -273,7 +223,7 @@ rmd160final(
   }
   for (; i < 64 - 8; ++i, ++s)
     *s = 0x00;
-  /* convert bytes to bits * 8=2^3 */
+  /* bytes to bits * 8=2^3 */
   *s++ = v->b << 3;
   *s++ = v->b >> (1 * 8 - 3);
   *s++ = v->b >> (2 * 8 - 3);
