@@ -92,7 +92,7 @@ rmd160mix(
   ,{15, 5, 8,11,14,14, 6,14, 6, 9,12, 9,12, 5,15, 8}
   ,{ 8, 5,12, 9,12, 5,14, 6, 8,13, 6, 5,15,13,11,11}
   };
-  static unsigned char v[10][16][5] = { /* hash mix */
+  static unsigned char v[10][16][5] = { /* hash rotate */
   {
    {0,1,2,3,4},{4,0,1,2,3},{3,4,0,1,2},{2,3,4,0,1},{1,2,3,4,0},{0,1,2,3,4},{4,0,1,2,3},{3,4,0,1,2}
   ,{2,3,4,0,1},{1,2,3,4,0},{0,1,2,3,4},{4,0,1,2,3},{3,4,0,1,2},{2,3,4,0,1},{1,2,3,4,0},{0,1,2,3,4}
@@ -137,36 +137,36 @@ rmd160mix(
   for (i = 0; i < 10; ++i) {
     for (j = 0; j < 16; ++j) {
       switch (i) {
-      case 0: case 9:
+      case 0: case 9: /* x XOR y XOR z */
         f = t[v[i][j][1]] ^ t[v[i][j][2]] ^ t[v[i][j][3]];
         break;
-      case 1: case 8:
+      case 1: case 8: /* (x AND y) OR (NOT(x) AND z) */
         f = (t[v[i][j][1]] & t[v[i][j][2]]) | (~t[v[i][j][1]] & t[v[i][j][3]]);
         break;
-      case 2: case 7:
+      case 2: case 7: /* (x OR NOT(y)) XOR z */
         f = (t[v[i][j][1]] | ~t[v[i][j][2]]) ^ t[v[i][j][3]];
         break;
-      case 3: case 6:
+      case 3: case 6: /* (x AND z) OR (y AND NOT(z)) */
         f = (t[v[i][j][1]] & t[v[i][j][3]]) | (t[v[i][j][2]] & ~t[v[i][j][3]]);
         break;
-      case 4: case 5:
+      case 4: case 5: /* x XOR (y OR NOT(z)) */
         f = t[v[i][j][1]] ^ (t[v[i][j][2]] | ~t[v[i][j][3]]);
         break;
       }
       f += t[v[i][j][0]]
          + (x[r[i][j] + 0] << 0 | x[r[i][j] + 1] << 8 | x[r[i][j] + 2] << 16 | x[r[i][j] + 3] << 24)
          + k[i];
-      t[v[i][j][0]] = ((f << s[i][j]) | (f >> (32 - s[i][j])))
+      t[v[i][j][0]] = ((f << s[i][j]) | (f >> (32 - s[i][j]))) /* rotate left */
                     + t[v[i][j][4]];
-      t[v[i][j][2]] = (t[v[i][j][2]] << 10) | (t[v[i][j][2]] >> (32 - 10));
+      t[v[i][j][2]] = (t[v[i][j][2]] << 10) | (t[v[i][j][2]] >> (32 - 10)); /* rotate left */
     }
   }
-  t[2] = h[1] + t[2] + t[8];
+     f = h[1] + t[2] + t[8];
   h[1] = h[2] + t[3] + t[9];
   h[2] = h[3] + t[4] + t[5];
   h[3] = h[4] + t[0] + t[6];
   h[4] = h[0] + t[1] + t[7];
-  h[0] = t[2];
+  h[0] = f;
 }
 
 void
