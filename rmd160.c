@@ -52,9 +52,9 @@ rmd160init(
 static void
 rmd160mix(
   rmd160_bt h[]
- ,unsigned char x[]
+ ,const unsigned char x[]
 ){
-  static rmd160_bt k[10] = { /* added constants */
+  static const rmd160_bt k[10] = { /* added constants */
     0x00000000U
    ,0x5a827999U
    ,0x6ed9eba1U
@@ -67,7 +67,7 @@ rmd160mix(
    ,0x7a6d76e9U
    ,0x00000000U
   };
-  static unsigned char r[10][16] = { /* message word (from bytes) */
+  static const unsigned char r[10][16] = { /* message word (from bytes) */
    { 0, 4, 8,12,16,20,24,28,32,36,40,44,48,52,56,60}
   ,{28,16,52, 4,40,24,60,12,48, 0,36,20, 8,56,44,32}
   ,{12,40,56,16,36,60,32, 4, 8,28, 0,24,52,44,20,48}
@@ -80,7 +80,7 @@ rmd160mix(
   ,{32,24,16, 4,12,44,60, 0,20,48, 8,52,36,28,40,56}
   ,{48,60,40,16, 4,20,32,28,24, 8,52,56, 0,12,36,44}
   };
-  static unsigned char s[10][16] = { /* amount to rotate left */
+  static const unsigned char s[10][16] = { /* amount to rotate left */
    {11,14,15,12, 5, 8, 7, 9,11,13,14,15, 6, 7, 9, 8}
   ,{ 7, 6, 8,13,11, 9, 7,15, 7,12,15, 9,11, 7,13,12}
   ,{11,13, 6, 7,14, 9,13,15,14, 8,13, 6, 5,12, 7, 5}
@@ -93,7 +93,7 @@ rmd160mix(
   ,{15, 5, 8,11,14,14, 6,14, 6, 9,12, 9,12, 5,15, 8}
   ,{ 8, 5,12, 9,12, 5,14, 6, 8,13, 6, 5,15,13,11,11}
   };
-  static unsigned char v[10][16][5] = { /* hash rotate */
+  static const unsigned char v[10][16][5] = { /* hash rotate */
   {
    {0,1,2,3,4},{4,0,1,2,3},{3,4,0,1,2},{2,3,4,0,1},{1,2,3,4,0},{0,1,2,3,4},{4,0,1,2,3},{3,4,0,1,2}
   ,{2,3,4,0,1},{1,2,3,4,0},{0,1,2,3,4},{4,0,1,2,3},{3,4,0,1,2},{2,3,4,0,1},{1,2,3,4,0},{0,1,2,3,4}
@@ -173,7 +173,7 @@ rmd160mix(
 void
 rmd160update(
   rmd160_t *v
- ,unsigned char *d
+ ,const unsigned char *d
  ,unsigned int l
 ){
   unsigned char *s;
@@ -247,13 +247,13 @@ rmd160final(
 
 void
 rmd160hex(
-  unsigned char *h
+  const unsigned char *h
  ,char *o
 ){
   unsigned int i;
 
   for (i = 0; i < 20; ++i, ++h) {
-    static char m[] = "0123456789abcdef";
+    static const char m[] = "0123456789abcdef";
 
     *o++ = m[(*h >> 4) & 0xf];
     *o++ = m[(*h >> 0) & 0xf];
