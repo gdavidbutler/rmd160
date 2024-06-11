@@ -19,7 +19,7 @@
  */
 
 typedef struct rmd160 rmd160_t;
-unsigned int rmd160tsize();
+unsigned int rmd160tsize(void);
 void rmd160init(rmd160_t *);
 void rmd160update(rmd160_t *, const unsigned char *, unsigned int);
 void rmd160final(rmd160_t *, unsigned char *); /* 20 unsigned char (160 bits) */
