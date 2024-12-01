@@ -18,9 +18,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-typedef struct rmd160 rmd160_t;
-unsigned int rmd160tsize(void);
-void rmd160init(rmd160_t *);
-void rmd160update(rmd160_t *, const unsigned char *, unsigned int);
-void rmd160final(rmd160_t *, unsigned char *); /* 20 unsigned char (160 bits) */
-void rmd160hex(const unsigned char *, char *); /* 20 unsigned char (160 bits), 40 char (not null-terminated) */
+typedef struct rmd320 rmd320_t;
+unsigned int rmd320tsize(void);
+void rmd320init(rmd320_t *);
+void rmd320update(rmd320_t *, const unsigned char *, unsigned int);
+void rmd320final(rmd320_t *, unsigned char *); /* 40 unsigned char (320 bits) */
+void rmd320hex(const unsigned char *, char *); /* 40 unsigned char (320 bits), 80 char (not null-terminated) */

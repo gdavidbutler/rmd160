@@ -9,7 +9,7 @@ main(
   rmd160_t *c;
   size_t i;
   unsigned char h[20];
-  unsigned char b[64];
+  unsigned char b[40];
 
   if (!(c = malloc(rmd160tsize())))
     return (1);
