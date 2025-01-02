@@ -241,6 +241,40 @@ rmd160final(
 }
 
 void
+rmd160hmac(
+  const unsigned char *k
+ ,unsigned int kl
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *h
+){
+  rmd160_t c;
+  unsigned char i[64];
+  unsigned char o[64];
+  unsigned int l;
+
+  if (kl > 64) {
+    rmd160init(&c);
+    rmd160update(&c, k, kl);
+    rmd160final(&c, h);
+    k = h;
+    kl = 20;
+  }
+  for (l = 0; l < sizeof (i); ++l)
+    i[l] = (l < kl ? *(k + l) : 0x00) ^ 0x36;
+  for (l = 0; l < sizeof (o); ++l)
+    o[l] = (l < kl ? *(k + l) : 0x00) ^ 0x5c;
+  rmd160init(&c);
+  rmd160update(&c, i, sizeof (i));
+  rmd160update(&c, d, dl);
+  rmd160final(&c, h);
+  rmd160init(&c);
+  rmd160update(&c, o, sizeof (o));
+  rmd160update(&c, h, 20);
+  rmd160final(&c, h);
+}
+
+void
 rmd160hex(
   const unsigned char *h
  ,char *o

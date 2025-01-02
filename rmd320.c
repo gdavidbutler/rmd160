@@ -271,6 +271,40 @@ rmd320final(
 }
 
 void
+rmd320hmac(
+  const unsigned char *k
+ ,unsigned int kl
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *h
+){
+  rmd320_t c;
+  unsigned char i[64];
+  unsigned char o[64];
+  unsigned int l;
+
+  if (kl > 64) {
+    rmd320init(&c);
+    rmd320update(&c, k, kl);
+    rmd320final(&c, h);
+    k = h;
+    kl = 40;
+  }
+  for (l = 0; l < sizeof (i); ++l)
+    i[l] = (l < kl ? *(k + l) : 0x00) ^ 0x36;
+  for (l = 0; l < sizeof (o); ++l)
+    o[l] = (l < kl ? *(k + l) : 0x00) ^ 0x5c;
+  rmd320init(&c);
+  rmd320update(&c, i, sizeof (i));
+  rmd320update(&c, d, dl);
+  rmd320final(&c, h);
+  rmd320init(&c);
+  rmd320update(&c, o, sizeof (o));
+  rmd320update(&c, h, 40);
+  rmd320final(&c, h);
+}
+
+void
 rmd320hex(
   const unsigned char *h
  ,char *o
