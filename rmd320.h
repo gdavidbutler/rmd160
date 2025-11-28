@@ -18,6 +18,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifndef __RMD320_H__
+#define __RMD320_H__
+
 typedef struct rmd320 rmd320_t;
 unsigned int rmd320tsize(void);
 void rmd320init(rmd320_t *);
@@ -25,3 +28,5 @@ void rmd320update(rmd320_t *, const unsigned char *, unsigned int);
 void rmd320final(rmd320_t *, unsigned char *); /* 40 unsigned char (320 bits) */
 void rmd320hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* 40 unsigned char (320 bits) */
 void rmd320hex(const unsigned char *, char *); /* 40 unsigned char (320 bits), 80 char (not null-terminated) */
+
+#endif /* __RMD320_H__ */
