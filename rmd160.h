@@ -18,8 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef __RMD160_H__
-#define __RMD160_H__
+#ifndef RMD160_H
+#define RMD160_H
 
 typedef struct rmd160 rmd160_t;
 unsigned int rmd160tsize(void);
@@ -29,4 +29,4 @@ void rmd160final(rmd160_t *, unsigned char *); /* 20 unsigned char (160 bits) */
 void rmd160hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* 20 unsigned char (160 bits) */
 void rmd160hex(const unsigned char *, char *); /* 20 unsigned char (160 bits), 40 char (not null-terminated) */
 
-#endif /* __RMD160_H__ */
+#endif /* RMD160_H */
