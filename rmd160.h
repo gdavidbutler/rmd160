@@ -21,12 +21,13 @@
 #ifndef RMD160_H
 #define RMD160_H
 
+#define RMD160_SZ 20
 typedef struct rmd160 rmd160_t;
 unsigned int rmd160tsize(void);
 void rmd160init(rmd160_t *);
 void rmd160update(rmd160_t *, const unsigned char *, unsigned int);
-void rmd160final(rmd160_t *, unsigned char *); /* 20 unsigned char (160 bits) */
-void rmd160hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* 20 unsigned char (160 bits) */
-void rmd160hex(const unsigned char *, char *); /* 20 unsigned char (160 bits), 40 char (not null-terminated) */
+void rmd160final(rmd160_t *, unsigned char *); /* RMD160_SZ */
+void rmd160hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* RMD160_SZ */
+void rmd160hex(const unsigned char *, char *); /* RMD160_SZ, 2 * RMD160_SZ (not null-terminated) */
 
 #endif /* RMD160_H */

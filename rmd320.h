@@ -21,12 +21,13 @@
 #ifndef RMD320_H
 #define RMD320_H
 
+#define RMD320_SZ 40
 typedef struct rmd320 rmd320_t;
 unsigned int rmd320tsize(void);
 void rmd320init(rmd320_t *);
 void rmd320update(rmd320_t *, const unsigned char *, unsigned int);
-void rmd320final(rmd320_t *, unsigned char *); /* 40 unsigned char (320 bits) */
-void rmd320hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* 40 unsigned char (320 bits) */
-void rmd320hex(const unsigned char *, char *); /* 40 unsigned char (320 bits), 80 char (not null-terminated) */
+void rmd320final(rmd320_t *, unsigned char *); /* RMD320_SZ */
+void rmd320hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* RMD320_SZ */
+void rmd320hex(const unsigned char *, char *); /* RMD320_SZ, 2 * RMD320_SZ (not null-terminated) */
 
 #endif /* RMD320_H */

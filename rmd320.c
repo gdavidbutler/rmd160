@@ -288,7 +288,7 @@ rmd320hmac(
     rmd320update(&c, k, kl);
     rmd320final(&c, h);
     k = h;
-    kl = 40;
+    kl = RMD320_SZ;
   }
   for (l = 0; l < kl; ++l) {
     i[l] = *(k + l) ^ 0x36;
@@ -304,7 +304,7 @@ rmd320hmac(
   rmd320final(&c, h);
   rmd320init(&c);
   rmd320update(&c, o, sizeof (o));
-  rmd320update(&c, h, 40);
+  rmd320update(&c, h, RMD320_SZ);
   rmd320final(&c, h);
 }
 
@@ -315,7 +315,7 @@ rmd320hex(
 ){
   unsigned int i;
 
-  for (i = 0; i < 40; ++i, ++h) {
+  for (i = 0; i < RMD320_SZ; ++i, ++h) {
     static const char m[] = "0123456789abcdef";
 
     *o++ = m[(*h >> 4) & 0xf];
