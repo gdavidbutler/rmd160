@@ -16,6 +16,10 @@ main(
   rmd320init(c);
   while ((i = fread(b, 1, sizeof (b), stdin)) == sizeof (b))
     rmd320update(c, b, i);
+  if (ferror(stdin)) {
+    free(c);
+    return (1);
+  }
   if (i > 0)
     rmd320update(c, b, i);
   rmd320final(c, h);

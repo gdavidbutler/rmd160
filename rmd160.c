@@ -21,12 +21,13 @@
 #include "rmd160.h"
 
 typedef unsigned int rmd160_bt; /* unsigned 32 bits */
+typedef int rmd160_bt_size_check[sizeof (rmd160_bt) == 4 ? 1 : -1];
 struct rmd160 {
- rmd160_bt h[5];       /* unsigned 32 bits */
- rmd160_bt bh;         /* bytes processed high */
- rmd160_bt bl;         /* bytes processed low */
- unsigned int l;       /* current short data */
- unsigned char d[64];  /* short data */
+  rmd160_bt h[5];       /* unsigned 32 bits */
+  rmd160_bt bh;         /* bytes processed high */
+  rmd160_bt bl;         /* bytes processed low */
+  unsigned int l;       /* current short data */
+  unsigned char d[64];  /* short data */
 };
 
 unsigned int
@@ -131,9 +132,9 @@ rmd160mix(
         break;
       }
       f += t[a] + w[r[i][j]] + k[i];
-      t[a] = ((f << s[i][j]) | (f >> (32 - s[i][j]))) /* rotate left */
+      t[a] = ((f << s[i][j]) | (f >> (sizeof (rmd160_bt) * 8 - s[i][j]))) /* rotate left */
            + t[e];
-      t[c] = (t[c] << 10) | (t[c] >> (32 - 10)); /* rotate left */
+      t[c] = (t[c] << 10) | (t[c] >> (sizeof (rmd160_bt) * 8 - 10)); /* rotate left */
     }
   }
      f = h[1] + t[2] + t[8];
@@ -202,20 +203,20 @@ rmd160final(
   for (; i < 64 - 8; ++i, ++s)
     *s = 0x00;
   /* bytes to bits * 8=2^3 */
-  *s++ = v->bl << 3;
-  *s++ = v->bl >> (1 * 8 - 3);
-  *s++ = v->bl >> (2 * 8 - 3);
-  *s++ = v->bl >> (3 * 8 - 3);
-  *s++ = (v->bh << 3) | (v->bl >> (4 * 8 - 3));
-  *s++ = v->bh >> (1 * 8 - 3);
-  *s++ = v->bh >> (2 * 8 - 3);
-  *s   = v->bh >> (3 * 8 - 3);
+  *s++ = (unsigned char)(v->bl << 3);
+  *s++ = (unsigned char)(v->bl >> (1 * 8 - 3));
+  *s++ = (unsigned char)(v->bl >> (2 * 8 - 3));
+  *s++ = (unsigned char)(v->bl >> (3 * 8 - 3));
+  *s++ = (unsigned char)((v->bh << 3) | (v->bl >> (4 * 8 - 3)));
+  *s++ = (unsigned char)(v->bh >> (1 * 8 - 3));
+  *s++ = (unsigned char)(v->bh >> (2 * 8 - 3));
+  *s   = (unsigned char)(v->bh >> (3 * 8 - 3));
   rmd160mix(v->h, v->d);
   for (i = 0; i < 5; ++i) {
-    *h++ = v->h[i] >> (0 * 8);
-    *h++ = v->h[i] >> (1 * 8);
-    *h++ = v->h[i] >> (2 * 8);
-    *h++ = v->h[i] >> (3 * 8);
+    *h++ = (unsigned char)(v->h[i] >> (0 * 8));
+    *h++ = (unsigned char)(v->h[i] >> (1 * 8));
+    *h++ = (unsigned char)(v->h[i] >> (2 * 8));
+    *h++ = (unsigned char)(v->h[i] >> (3 * 8));
   }
 }
 
@@ -255,6 +256,21 @@ rmd160hmac(
   rmd160update(&c, o, sizeof (o));
   rmd160update(&c, h, RMD160_SZ);
   rmd160final(&c, h);
+  /* wipe stack residue; volatile defeats dead-store elimination */
+  {
+    volatile unsigned char *p;
+    unsigned int n;
+
+    p = (volatile unsigned char *)&c;
+    for (n = 0; n < sizeof (c); ++n)
+      *p++ = 0;
+    p = (volatile unsigned char *)i;
+    for (n = 0; n < sizeof (i); ++n)
+      *p++ = 0;
+    p = (volatile unsigned char *)o;
+    for (n = 0; n < sizeof (o); ++n)
+      *p++ = 0;
+  }
 }
 
 void

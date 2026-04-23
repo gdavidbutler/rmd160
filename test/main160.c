@@ -16,6 +16,10 @@ main(
   rmd160init(c);
   while ((i = fread(b, 1, sizeof (b), stdin)) == sizeof (b))
     rmd160update(c, b, i);
+  if (ferror(stdin)) {
+    free(c);
+    return (1);
+  }
   if (i > 0)
     rmd160update(c, b, i);
   rmd160final(c, h);
