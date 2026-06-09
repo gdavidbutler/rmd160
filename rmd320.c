@@ -304,6 +304,82 @@ rmd320hmac(
 }
 
 void
+rmd320hkdf(
+  const unsigned char *k
+ ,unsigned int kl
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *s
+ ,unsigned int sl
+){
+  rmd320_t c;
+  unsigned char i[64];
+  unsigned char o[64];
+  unsigned char t[RMD320_SZ];
+  unsigned char t2[RMD320_SZ];
+  unsigned int l;
+  unsigned int n;
+
+  if (sl > 255 * RMD320_SZ)
+    sl = 255 * RMD320_SZ;
+  if (kl > 64) {
+    rmd320init(&c);
+    rmd320update(&c, k, kl);
+    rmd320final(&c, t);
+    k = t;
+    kl = RMD320_SZ;
+  }
+  for (l = 0; l < kl; ++l) {
+    i[l] = *(k + l) ^ 0x36;
+    o[l] = *(k + l) ^ 0x5c;
+  }
+  for (; l < 64; ++l) {
+    i[l] = 0x00 ^ 0x36;
+    o[l] = 0x00 ^ 0x5c;
+  }
+  for (n = 0, l = 0; l < sl;) {
+    unsigned char b;
+    unsigned int j;
+
+    b = (unsigned char)++n;
+    rmd320init(&c);
+    rmd320update(&c, i, sizeof (i));
+    if (n > 1)
+      rmd320update(&c, t, RMD320_SZ);
+    rmd320update(&c, d, dl);
+    rmd320update(&c, &b, 1);
+    rmd320final(&c, t2);
+    rmd320init(&c);
+    rmd320update(&c, o, sizeof (o));
+    rmd320update(&c, t2, RMD320_SZ);
+    rmd320final(&c, t);
+    for (j = 0; j < RMD320_SZ && l < sl; ++j, ++l)
+      s[l] = t[j];
+  }
+  /* wipe stack residue once; volatile defeats dead-store elimination */
+  {
+    volatile unsigned char *p;
+    unsigned int m;
+
+    p = (volatile unsigned char *)&c;
+    for (m = 0; m < sizeof (c); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)i;
+    for (m = 0; m < sizeof (i); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)o;
+    for (m = 0; m < sizeof (o); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)t;
+    for (m = 0; m < sizeof (t); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)t2;
+    for (m = 0; m < sizeof (t2); ++m)
+      *p++ = 0;
+  }
+}
+
+void
 rmd320hex(
   const unsigned char *h
  ,char *o

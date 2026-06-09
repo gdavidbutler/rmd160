@@ -28,6 +28,7 @@ void rmd320init(rmd320_t *);
 void rmd320update(rmd320_t *, const unsigned char *, unsigned int);
 void rmd320final(rmd320_t *, unsigned char *); /* RMD320_SZ */
 void rmd320hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* RMD320_SZ */
+void rmd320hkdf(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *o, unsigned int ol); /* up to 255 * RMD320_SZ */
 void rmd320hex(const unsigned char *, char *); /* RMD320_SZ, 2 * RMD320_SZ (not null-terminated) */
 
 #endif /* RMD320_H */

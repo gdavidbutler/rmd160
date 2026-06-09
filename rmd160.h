@@ -28,6 +28,7 @@ void rmd160init(rmd160_t *);
 void rmd160update(rmd160_t *, const unsigned char *, unsigned int);
 void rmd160final(rmd160_t *, unsigned char *); /* RMD160_SZ */
 void rmd160hmac(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *h); /* RMD160_SZ */
+void rmd160hkdf(const unsigned char *k, unsigned int kl, const unsigned char *d, unsigned int dl, unsigned char *o, unsigned int ol); /* up to 255 * RMD160_SZ */
 void rmd160hex(const unsigned char *, char *); /* RMD160_SZ, 2 * RMD160_SZ (not null-terminated) */
 
 #endif /* RMD160_H */

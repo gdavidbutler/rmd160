@@ -8,3 +8,6 @@ This implementation was created to provide small code to fit in a memory constra
 If your compiler does not implement "unsigned int" as 32 bits, change "unsigned int" in rmd160.c @ typedef unsigned int rmd160_bt; to, perhaps, "unsigned long".
 
 Included is an example driver program, main.c, that reads standard input till end-of-file and writes on standard output a hex representation of the hash.
+
+Built on the same hash core, with no dynamic allocation, are keyed primitives: HMAC ([RFC 2104](https://www.rfc-editor.org/rfc/rfc2104)) and HKDF ([RFC 5869](https://www.rfc-editor.org/rfc/rfc5869)).
+HKDF feeds T(n-1) | info | counter through the hash a piece at a time rather than assembling that concatenation in a buffer, which is what lets it avoid allocation.
