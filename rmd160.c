@@ -91,6 +91,7 @@ rmd160mix(
   ,{ 9,15, 5,11, 6, 8,13,12, 5,12,13,14,11, 8, 5, 6}
   ,{ 8, 5,12, 9,12, 5,14, 6, 8,13, 6, 5,15,13,11,11}
   };
+  static const unsigned char m[] = {0, 1, 2, 3, 4, 0, 1, 2, 3, 4}; /* n % 5 */
   rmd160_bt w[16]; /* precomputed message words */
   rmd160_bt t[10]; /* a=0 b=1 c=2 d=3 e=4 a'=5 b'=6 c'=7 d'=8 e'=9 */
   rmd160_bt f;
@@ -107,13 +108,12 @@ rmd160mix(
   for (i = 0; i < 10; ++i) {
     base = (i & 1) * 5;
     phase = i >> 1;
-    for (j = 0; j < 16; ++j) {
-      jm = (j + phase) % 5;
-      a = base + (5u - jm) % 5;
-      b = base + (6u - jm) % 5;
-      c = base + (7u - jm) % 5;
-      d = base + (8u - jm) % 5;
-      e = base + (9u - jm) % 5;
+    for (jm = phase, j = 0; j < 16; ++j) {
+      a = base + m[5u - jm];
+      b = base + m[6u - jm];
+      c = base + m[7u - jm];
+      d = base + m[8u - jm];
+      e = base + m[9u - jm];
       switch (i) {
       case 0: case 9: /* x XOR y XOR z */
         f = t[b] ^ t[c] ^ t[d];
@@ -135,6 +135,8 @@ rmd160mix(
       t[a] = ((f << s[i][j]) | (f >> (sizeof (rmd160_bt) * 8 - s[i][j]))) /* rotate left */
            + t[e];
       t[c] = (t[c] << 10) | (t[c] >> (sizeof (rmd160_bt) * 8 - 10)); /* rotate left */
+      if (++jm == 5)
+        jm = 0;
     }
   }
      f = h[1] + t[2] + t[8];
@@ -283,6 +285,8 @@ rmd160hkdf(
  ,unsigned int sl
 ){
   rmd160_t c;
+  rmd160_t ci;
+  rmd160_t co;
   unsigned char i[64];
   unsigned char o[64];
   unsigned char t[RMD160_SZ];
@@ -307,20 +311,22 @@ rmd160hkdf(
     i[l] = 0x00 ^ 0x36;
     o[l] = 0x00 ^ 0x5c;
   }
+  rmd160init(&ci);
+  rmd160update(&ci, i, sizeof (i));
+  rmd160init(&co);
+  rmd160update(&co, o, sizeof (o));
   for (n = 0, l = 0; l < sl;) {
     unsigned char b;
     unsigned int j;
 
     b = (unsigned char)++n;
-    rmd160init(&c);
-    rmd160update(&c, i, sizeof (i));
+    c = ci;
     if (n > 1)
       rmd160update(&c, t, RMD160_SZ);
     rmd160update(&c, d, dl);
     rmd160update(&c, &b, 1);
     rmd160final(&c, t2);
-    rmd160init(&c);
-    rmd160update(&c, o, sizeof (o));
+    c = co;
     rmd160update(&c, t2, RMD160_SZ);
     rmd160final(&c, t);
     for (j = 0; j < RMD160_SZ && l < sl; ++j, ++l)
@@ -333,6 +339,12 @@ rmd160hkdf(
 
     p = (volatile unsigned char *)&c;
     for (m = 0; m < sizeof (c); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)&ci;
+    for (m = 0; m < sizeof (ci); ++m)
+      *p++ = 0;
+    p = (volatile unsigned char *)&co;
+    for (m = 0; m < sizeof (co); ++m)
       *p++ = 0;
     p = (volatile unsigned char *)i;
     for (m = 0; m < sizeof (i); ++m)
