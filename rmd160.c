@@ -29,6 +29,10 @@ struct rmd160 {
   unsigned int l;       /* current short data */
   unsigned char d[64];  /* short data */
 };
+struct rmd160k {
+  rmd160_t i;           /* the inner pad hashed */
+  rmd160_t o;           /* the outer pad hashed */
+};
 
 unsigned int
 rmd160tsize(
@@ -145,6 +149,19 @@ rmd160mix(
   h[3] = h[4] + t[0] + t[6];
   h[4] = h[0] + t[1] + t[7];
   h[0] = f;
+  /* wipe the block's words and the working state, a secret's when a
+   * key is hashed; volatile defeats dead-store elimination */
+  {
+    volatile rmd160_bt *p;
+    unsigned int n;
+
+    for (p = w, n = 0; n < sizeof (w) / sizeof (w[0]); ++n)
+      *p++ = 0;
+    for (p = t, n = 0; n < sizeof (t) / sizeof (t[0]); ++n)
+      *p++ = 0;
+    p = &f;
+    *p = 0;
+  }
 }
 
 void
@@ -222,80 +239,25 @@ rmd160final(
   }
 }
 
-void
-rmd160hmac(
-  const unsigned char *k
- ,unsigned int kl
- ,const unsigned char *d
- ,unsigned int dl
- ,unsigned char *h
+unsigned int
+rmd160ktsize(
+  void
 ){
-  rmd160_t c;
-  unsigned char i[64];
-  unsigned char o[64];
-  unsigned int l;
-
-  if (kl > 64) {
-    rmd160init(&c);
-    rmd160update(&c, k, kl);
-    rmd160final(&c, h);
-    k = h;
-    kl = RMD160_SZ;
-  }
-  for (l = 0; l < kl; ++l) {
-    i[l] = *(k + l) ^ 0x36;
-    o[l] = *(k + l) ^ 0x5c;
-  }
-  for (; l < 64; ++l) {
-    i[l] = 0x00 ^ 0x36;
-    o[l] = 0x00 ^ 0x5c;
-  }
-  rmd160init(&c);
-  rmd160update(&c, i, sizeof (i));
-  rmd160update(&c, d, dl);
-  rmd160final(&c, h);
-  rmd160init(&c);
-  rmd160update(&c, o, sizeof (o));
-  rmd160update(&c, h, RMD160_SZ);
-  rmd160final(&c, h);
-  /* wipe stack residue; volatile defeats dead-store elimination */
-  {
-    volatile unsigned char *p;
-    unsigned int n;
-
-    p = (volatile unsigned char *)&c;
-    for (n = 0; n < sizeof (c); ++n)
-      *p++ = 0;
-    p = (volatile unsigned char *)i;
-    for (n = 0; n < sizeof (i); ++n)
-      *p++ = 0;
-    p = (volatile unsigned char *)o;
-    for (n = 0; n < sizeof (o); ++n)
-      *p++ = 0;
-  }
+  return (sizeof (rmd160k_t));
 }
 
 void
-rmd160hkdf(
-  const unsigned char *k
+rmd160kinit(
+  rmd160k_t *x
+ ,const unsigned char *k
  ,unsigned int kl
- ,const unsigned char *d
- ,unsigned int dl
- ,unsigned char *s
- ,unsigned int sl
 ){
   rmd160_t c;
-  rmd160_t ci;
-  rmd160_t co;
   unsigned char i[64];
   unsigned char o[64];
   unsigned char t[RMD160_SZ];
-  unsigned char t2[RMD160_SZ];
   unsigned int l;
-  unsigned int n;
 
-  if (sl > 255 * RMD160_SZ)
-    sl = 255 * RMD160_SZ;
   if (kl > 64) {
     rmd160init(&c);
     rmd160update(&c, k, kl);
@@ -311,22 +273,110 @@ rmd160hkdf(
     i[l] = 0x00 ^ 0x36;
     o[l] = 0x00 ^ 0x5c;
   }
-  rmd160init(&ci);
-  rmd160update(&ci, i, sizeof (i));
-  rmd160init(&co);
-  rmd160update(&co, o, sizeof (o));
+  rmd160init(&x->i);
+  rmd160update(&x->i, i, sizeof (i));
+  rmd160init(&x->o);
+  rmd160update(&x->o, o, sizeof (o));
+  /* wipe stack residue; volatile defeats dead-store elimination */
+  {
+    volatile unsigned char *p;
+    unsigned int n;
+
+    p = (volatile unsigned char *)&c;
+    for (n = 0; n < sizeof (c); ++n)
+      *p++ = 0;
+    p = (volatile unsigned char *)i;
+    for (n = 0; n < sizeof (i); ++n)
+      *p++ = 0;
+    p = (volatile unsigned char *)o;
+    for (n = 0; n < sizeof (o); ++n)
+      *p++ = 0;
+    p = (volatile unsigned char *)t;
+    for (n = 0; n < sizeof (t); ++n)
+      *p++ = 0;
+  }
+}
+
+void
+rmd160khmac(
+  const rmd160k_t *x
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *h
+){
+  rmd160_t c;
+
+  c = x->i;
+  rmd160update(&c, d, dl);
+  rmd160final(&c, h);
+  c = x->o;
+  rmd160update(&c, h, RMD160_SZ);
+  rmd160final(&c, h);
+  /* wipe stack residue; volatile defeats dead-store elimination */
+  {
+    volatile unsigned char *p;
+    unsigned int n;
+
+    p = (volatile unsigned char *)&c;
+    for (n = 0; n < sizeof (c); ++n)
+      *p++ = 0;
+  }
+}
+
+void
+rmd160hmac(
+  const unsigned char *k
+ ,unsigned int kl
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *h
+){
+  rmd160k_t x;
+
+  rmd160kinit(&x, k, kl);
+  rmd160khmac(&x, d, dl, h);
+  /* wipe stack residue; volatile defeats dead-store elimination */
+  {
+    volatile unsigned char *p;
+    unsigned int n;
+
+    p = (volatile unsigned char *)&x;
+    for (n = 0; n < sizeof (x); ++n)
+      *p++ = 0;
+  }
+}
+
+void
+rmd160hkdf(
+  const unsigned char *k
+ ,unsigned int kl
+ ,const unsigned char *d
+ ,unsigned int dl
+ ,unsigned char *s
+ ,unsigned int sl
+){
+  rmd160_t c;
+  rmd160k_t x;
+  unsigned char t[RMD160_SZ];
+  unsigned char t2[RMD160_SZ];
+  unsigned int l;
+  unsigned int n;
+
+  if (sl > 255 * RMD160_SZ)
+    sl = 255 * RMD160_SZ;
+  rmd160kinit(&x, k, kl);
   for (n = 0, l = 0; l < sl;) {
     unsigned char b;
     unsigned int j;
 
     b = (unsigned char)++n;
-    c = ci;
+    c = x.i;
     if (n > 1)
       rmd160update(&c, t, RMD160_SZ);
     rmd160update(&c, d, dl);
     rmd160update(&c, &b, 1);
     rmd160final(&c, t2);
-    c = co;
+    c = x.o;
     rmd160update(&c, t2, RMD160_SZ);
     rmd160final(&c, t);
     for (j = 0; j < RMD160_SZ && l < sl; ++j, ++l)
@@ -340,17 +390,8 @@ rmd160hkdf(
     p = (volatile unsigned char *)&c;
     for (m = 0; m < sizeof (c); ++m)
       *p++ = 0;
-    p = (volatile unsigned char *)&ci;
-    for (m = 0; m < sizeof (ci); ++m)
-      *p++ = 0;
-    p = (volatile unsigned char *)&co;
-    for (m = 0; m < sizeof (co); ++m)
-      *p++ = 0;
-    p = (volatile unsigned char *)i;
-    for (m = 0; m < sizeof (i); ++m)
-      *p++ = 0;
-    p = (volatile unsigned char *)o;
-    for (m = 0; m < sizeof (o); ++m)
+    p = (volatile unsigned char *)&x;
+    for (m = 0; m < sizeof (x); ++m)
       *p++ = 0;
     p = (volatile unsigned char *)t;
     for (m = 0; m < sizeof (t); ++m)
