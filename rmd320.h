@@ -26,7 +26,7 @@ typedef struct rmd320 rmd320_t;
 unsigned int rmd320tsize(void);
 void rmd320init(rmd320_t *);
 void rmd320update(rmd320_t *, const unsigned char *, unsigned int);
-void rmd320final(rmd320_t *, unsigned char *); /* RMD320_SZ */
+void rmd320final(rmd320_t *, unsigned char *); /* RMD320_SZ; then zeroes the context, which init may take again */
 typedef struct rmd320k rmd320k_t; /* an HMAC keyed: the key's two pads hashed once; its owner wipes it */
 unsigned int rmd320ktsize(void);
 void rmd320kinit(rmd320k_t *, const unsigned char *k, unsigned int kl);

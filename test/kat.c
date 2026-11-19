@@ -67,6 +67,21 @@ check(
   return (1);
 }
 
+/* the index of the first byte not zero, n when all are */
+static unsigned int
+unzeroed(
+  const void *c
+ ,unsigned int n
+){
+  const unsigned char *p;
+  unsigned int q;
+
+  for (p = c, q = 0; q < n; ++q, ++p)
+    if (*p)
+      break;
+  return (q);
+}
+
 int
 main(
   void
@@ -99,6 +114,7 @@ main(
   unsigned int q;
   unsigned int off;
   unsigned int n;
+  unsigned int z;
   int fail;
 
   if (!(c160 = malloc(rmd160tsize()))) {
@@ -114,17 +130,27 @@ main(
 
   /* Spec KATs */
   for (q = 0; q < sizeof (Svec) / sizeof (Svec[0]); ++q) {
+    memset(c160, 0xa5, rmd160tsize());
     rmd160init(c160);
     rmd160update(c160, (const unsigned char *)Svec[q].in, Svec[q].inlen);
     rmd160final(c160, h160);
     hexof(h160, RMD160_SZ, b160);
     fail += check("rmd160 spec", b160, Svec[q].h160);
+    if ((z = unzeroed(c160, rmd160tsize())) < rmd160tsize()) {
+      fprintf(stderr, "FAIL rmd160final: context byte %u not zero, %u bytes hashed\n", z, Svec[q].inlen);
+      ++fail;
+    }
 
+    memset(c320, 0xa5, rmd320tsize());
     rmd320init(c320);
     rmd320update(c320, (const unsigned char *)Svec[q].in, Svec[q].inlen);
     rmd320final(c320, h320);
     hexof(h320, RMD320_SZ, b320);
     fail += check("rmd320 spec", b320, Svec[q].h320);
+    if ((z = unzeroed(c320, rmd320tsize())) < rmd320tsize()) {
+      fprintf(stderr, "FAIL rmd320final: context byte %u not zero, %u bytes hashed\n", z, Svec[q].inlen);
+      ++fail;
+    }
   }
 
   /* Million-'a' */
@@ -175,6 +201,34 @@ main(
     hexof(h320, RMD320_SZ, b320);
     fail += check("rmd160 stream", b160, ref160);
     fail += check("rmd320 stream", b320, ref320);
+  }
+
+  /* final leaves nothing of what it hashed in the context: poisoned
+   * before init, every byte zero after final, at every length through
+   * two blocks and a byte, so every final block length is met */
+  {
+    static unsigned char Db[2 * 64 + 1];
+
+    for (q = 0; q < sizeof (Db); ++q)
+      Db[q] = q * 11 + 1;
+    for (q = 0; q <= sizeof (Db); ++q) {
+      memset(c160, 0xa5, rmd160tsize());
+      rmd160init(c160);
+      rmd160update(c160, Db, q);
+      rmd160final(c160, h160);
+      if ((z = unzeroed(c160, rmd160tsize())) < rmd160tsize()) {
+        fprintf(stderr, "FAIL rmd160final: context byte %u not zero, %u bytes hashed\n", z, q);
+        ++fail;
+      }
+      memset(c320, 0xa5, rmd320tsize());
+      rmd320init(c320);
+      rmd320update(c320, Db, q);
+      rmd320final(c320, h320);
+      if ((z = unzeroed(c320, rmd320tsize())) < rmd320tsize()) {
+        fprintf(stderr, "FAIL rmd320final: context byte %u not zero, %u bytes hashed\n", z, q);
+        ++fail;
+      }
+    }
   }
 
   /* HMAC-RIPEMD-160 from RFC 2286 */

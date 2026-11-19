@@ -26,7 +26,7 @@ typedef struct rmd160 rmd160_t;
 unsigned int rmd160tsize(void);
 void rmd160init(rmd160_t *);
 void rmd160update(rmd160_t *, const unsigned char *, unsigned int);
-void rmd160final(rmd160_t *, unsigned char *); /* RMD160_SZ */
+void rmd160final(rmd160_t *, unsigned char *); /* RMD160_SZ; then zeroes the context, which init may take again */
 typedef struct rmd160k rmd160k_t; /* an HMAC keyed: the key's two pads hashed once; its owner wipes it */
 unsigned int rmd160ktsize(void);
 void rmd160kinit(rmd160k_t *, const unsigned char *k, unsigned int kl);

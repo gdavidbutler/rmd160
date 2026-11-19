@@ -26,13 +26,20 @@ struct rmd160 {
   rmd160_bt h[5];       /* unsigned 32 bits */
   rmd160_bt bh;         /* bytes processed high */
   rmd160_bt bl;         /* bytes processed low */
-  unsigned int l;       /* current short data */
-  unsigned char d[64];  /* short data */
+  rmd160_bt l;          /* current short data */
+  union {
+    unsigned char d[64];                  /* short data */
+    rmd160_bt w[64 / sizeof (rmd160_bt)]; /* d as words, to wipe */
+  } u;
 };
 struct rmd160k {
   rmd160_t i;           /* the inner pad hashed */
   rmd160_t o;           /* the outer pad hashed */
 };
+/* the wipes name every member: they reach every byte only without padding */
+typedef int rmd160_layout_check[sizeof (rmd160_t)
+ == (5 + 3) * sizeof (rmd160_bt) + 64 /* h, bh, bl, l; u */
+ && sizeof (rmd160k_t) == 2 * sizeof (rmd160_t) ? 1 : -1];
 
 unsigned int
 rmd160tsize(
@@ -175,10 +182,10 @@ rmd160update(
   if (v->l) {
     unsigned int i;
 
-    for (i = v->l, s = v->d + i; l && i < 64; --l, ++i, ++s, ++d)
+    for (i = v->l, s = v->u.d + i; l && i < 64; --l, ++i, ++s, ++d)
       *s = *d;
     if (i == 64) {
-      rmd160mix(v->h, v->d);
+      rmd160mix(v->h, v->u.d);
       if ((v->bl += 64) < 64)
         ++v->bh;
       v->l = 0;
@@ -194,7 +201,7 @@ rmd160update(
   }
   if (l) {
     v->l = l;
-    for (s = v->d; l; --l, ++s, ++d)
+    for (s = v->u.d; l; --l, ++s, ++d)
       *s = *d;
   }
 }
@@ -210,14 +217,14 @@ rmd160final(
   if ((i = v->l))
     if ((v->bl += i) < i)
       ++v->bh;
-  s = v->d + i++;
+  s = v->u.d + i++;
   *s++ = 0x80;
   if (i > 64 - 8) {
     for (; i < 64; ++i, ++s)
       *s = 0x00;
-    rmd160mix(v->h, v->d);
+    rmd160mix(v->h, v->u.d);
     i = 0;
-    s = v->d;
+    s = v->u.d;
   }
   for (; i < 64 - 8; ++i, ++s)
     *s = 0x00;
@@ -230,12 +237,30 @@ rmd160final(
   *s++ = (unsigned char)(v->bh >> (1 * 8 - 3));
   *s++ = (unsigned char)(v->bh >> (2 * 8 - 3));
   *s   = (unsigned char)(v->bh >> (3 * 8 - 3));
-  rmd160mix(v->h, v->d);
+  rmd160mix(v->h, v->u.d);
   for (i = 0; i < 5; ++i) {
     *h++ = (unsigned char)(v->h[i] >> (0 * 8));
     *h++ = (unsigned char)(v->h[i] >> (1 * 8));
     *h++ = (unsigned char)(v->h[i] >> (2 * 8));
     *h++ = (unsigned char)(v->h[i] >> (3 * 8));
+  }
+  /* leave nothing of the message in the context; volatile defeats
+   * dead-store elimination, in words since volatile bytes cannot
+   * be merged */
+  {
+    volatile rmd160_bt *p;
+    unsigned int n;
+
+    for (p = v->h, n = 0; n < sizeof (v->h) / sizeof (v->h[0]); ++n)
+      *p++ = 0;
+    p = &v->bh;
+    *p = 0;
+    p = &v->bl;
+    *p = 0;
+    p = &v->l;
+    *p = 0;
+    for (p = v->u.w, n = 0; n < sizeof (v->u.w) / sizeof (v->u.w[0]); ++n)
+      *p++ = 0;
   }
 }
 
@@ -282,9 +307,6 @@ rmd160kinit(
     volatile unsigned char *p;
     unsigned int n;
 
-    p = (volatile unsigned char *)&c;
-    for (n = 0; n < sizeof (c); ++n)
-      *p++ = 0;
     p = (volatile unsigned char *)i;
     for (n = 0; n < sizeof (i); ++n)
       *p++ = 0;
@@ -312,15 +334,6 @@ rmd160khmac(
   c = x->o;
   rmd160update(&c, h, RMD160_SZ);
   rmd160final(&c, h);
-  /* wipe stack residue; volatile defeats dead-store elimination */
-  {
-    volatile unsigned char *p;
-    unsigned int n;
-
-    p = (volatile unsigned char *)&c;
-    for (n = 0; n < sizeof (c); ++n)
-      *p++ = 0;
-  }
 }
 
 void
@@ -335,14 +348,26 @@ rmd160hmac(
 
   rmd160kinit(&x, k, kl);
   rmd160khmac(&x, d, dl, h);
-  /* wipe stack residue; volatile defeats dead-store elimination */
+  /* wipe stack residue; volatile defeats dead-store elimination, in
+   * words since volatile bytes cannot be merged */
   {
-    volatile unsigned char *p;
+    rmd160_t *q;
+    volatile rmd160_bt *p;
+    unsigned int i;
     unsigned int n;
 
-    p = (volatile unsigned char *)&x;
-    for (n = 0; n < sizeof (x); ++n)
-      *p++ = 0;
+    for (q = &x.i, i = 0; i < 2; ++i, q = &x.o) {
+      for (p = q->h, n = 0; n < sizeof (q->h) / sizeof (q->h[0]); ++n)
+        *p++ = 0;
+      p = &q->bh;
+      *p = 0;
+      p = &q->bl;
+      *p = 0;
+      p = &q->l;
+      *p = 0;
+      for (p = q->u.w, n = 0; n < sizeof (q->u.w) / sizeof (q->u.w[0]); ++n)
+        *p++ = 0;
+    }
   }
 }
 
@@ -382,17 +407,27 @@ rmd160hkdf(
     for (j = 0; j < RMD160_SZ && l < sl; ++j, ++l)
       s[l] = t[j];
   }
-  /* wipe stack residue once; volatile defeats dead-store elimination */
+  /* wipe stack residue once; volatile defeats dead-store elimination,
+   * the keyed pair in words since volatile bytes cannot be merged */
   {
+    rmd160_t *q;
+    volatile rmd160_bt *w;
     volatile unsigned char *p;
+    unsigned int i;
     unsigned int m;
 
-    p = (volatile unsigned char *)&c;
-    for (m = 0; m < sizeof (c); ++m)
-      *p++ = 0;
-    p = (volatile unsigned char *)&x;
-    for (m = 0; m < sizeof (x); ++m)
-      *p++ = 0;
+    for (q = &x.i, i = 0; i < 2; ++i, q = &x.o) {
+      for (w = q->h, m = 0; m < sizeof (q->h) / sizeof (q->h[0]); ++m)
+        *w++ = 0;
+      w = &q->bh;
+      *w = 0;
+      w = &q->bl;
+      *w = 0;
+      w = &q->l;
+      *w = 0;
+      for (w = q->u.w, m = 0; m < sizeof (q->u.w) / sizeof (q->u.w[0]); ++m)
+        *w++ = 0;
+    }
     p = (volatile unsigned char *)t;
     for (m = 0; m < sizeof (t); ++m)
       *p++ = 0;
